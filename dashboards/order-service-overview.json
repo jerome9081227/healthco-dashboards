@@ -1,0 +1,50 @@
+{
+  "title": "Order Service Overview",
+  "uid": "order-service-overview",
+  "tags": ["order-service", "platform", "healthco"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Orders Created by Channel",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "rate(orders_created_total{service_name=\"order-service\"}[5m])",
+          "legendFormat": "{{channel}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Payment Error Rate",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "sum(rate(payments_errors_total{service_name=\"order-service\"}[5m]))",
+          "legendFormat": "Error Rate"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Active Orders",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+          "expr": "orders_active{service_name=\"order-service\"}",
+          "legendFormat": "Active Orders"
+        }
+      ]
+    }
+  ]
+}
