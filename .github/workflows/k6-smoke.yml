@@ -37,14 +37,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Inject Tempo auth into collector config
           sed "s|__TEMPO_AUTH__|${TEMPO_AUTH_BASE64}|g" \
             k6/otel-collector-config.yaml > /tmp/otel-config.yaml
 
           echo "=== Collector config (auth redacted) ==="
           sed 's/authorization:.*/authorization: [REDACTED]/' /tmp/otel-config.yaml
 
-          # Download otelcol binary
           echo "Downloading otelcol..."
           curl -sSL -o /tmp/otelcol.tar.gz \
             "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.102.0/otelcol_0.102.0_linux_amd64.tar.gz"
@@ -52,13 +50,11 @@ jobs:
           chmod +x /tmp/otelcol
           /tmp/otelcol --version
 
-          # Start collector
           /tmp/otelcol --config /tmp/otel-config.yaml > /tmp/otelcol.log 2>&1 &
           OTEL_PID=$!
           echo "Collector PID: ${OTEL_PID}"
 
-          # Wait for gRPC port 4317
-          echo "Waiting for port 4317 (gRPC OTLP)..."
+          echo "Waiting for port 4317 (gRPC)..."
           READY=0
           for i in $(seq 1 20); do
             if (echo > /dev/tcp/localhost/4317) 2>/dev/null; then
@@ -88,7 +84,7 @@ jobs:
             cat /tmp/otelcol.log
             exit 1
           fi
-          echo "OTel Collector live — gRPC :4317 (PID ${OTEL_PID})"
+          echo "OTel Collector live — gRPC :4317, HTTP :4318 (PID ${OTEL_PID})"
 
       - name: Run k6 smoke test
         env:
@@ -96,10 +92,11 @@ jobs:
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
           K6_CLOUD_PROJECT_ID: ${{ secrets.K6_CLOUD_PROJECT_ID }}
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
-          # k6 2.x opentelemetry output always uses gRPC; setting http type forces insecure mode
-          # Collector on localhost:4317 receives spans and forwards to Grafana Cloud Tempo
+          # K6_OTEL_EXPORTER_TYPE=http makes k6 use insecure gRPC to localhost:4317.
+          # K6_OTEL_HTTP_EXPORTER_ENDPOINT must point to the HTTP port (4318) for the
+          # insecure-gRPC resolution to work correctly — do NOT use port 4317 here.
           K6_OTEL_EXPORTER_TYPE: http
-          K6_OTEL_HTTP_EXPORTER_ENDPOINT: http://localhost:4317
+          K6_OTEL_HTTP_EXPORTER_ENDPOINT: http://localhost:4318
           K6_OTEL_SERVICE_NAME: k6-healthco
         run: k6 run --out cloud --out opentelemetry k6/scripts/health-check.js
 
