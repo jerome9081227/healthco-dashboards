@@ -6,7 +6,7 @@ import { check, sleep, group } from 'k6';
 import tempo from 'https://jslib.k6.io/http-instrumentation-tempo/1.0.0/index.js';
 import pyroscope from 'https://jslib.k6.io/http-instrumentation-pyroscope/1.0.1/index.js';
 
-const BASE_URL = __ENV.TARGET_URL || 'http://localhost:8080';
+const BASE_URL = __ENV.TARGET_URL || 'http://localhost:6789';
 
 export const options = {
   scenarios: {
