@@ -43,7 +43,7 @@ jobs:
           OTEL_SERVICE_NAME: k6-healthco
           K6_TRACING_PROPAGATOR: w3c
         run: k6 run --out cloud --out experimental-opentelemetry k6/scripts/health-check.js
-        # k6 exits with code 99 when thresholds fail → step fails → PR is blocked
+        # k6 exits wit code 99 when thresholds fail → step fails → PR is blocked
         # --out cloud → metrics stream to Grafana Cloud k6
         # --out experimental-opentelemetry → traces stream to Grafana Cloud Tempo
         # K6_TRACING_PROPAGATOR → injects W3C traceparent headers for app correlation
