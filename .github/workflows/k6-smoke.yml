@@ -39,9 +39,8 @@ jobs:
       - name: Run k6 smoke test
         env:
           TARGET_URL: http://localhost:6789
-          K6_PROMETHEUS_RW_SERVER_URL: ${{ secrets.K6_PROMETHEUS_RW_SERVER_URL }}
-          K6_PROMETHEUS_RW_USERNAME: ${{ secrets.K6_PROMETHEUS_RW_USERNAME }}
-          K6_PROMETHEUS_RW_PASSWORD: ${{ secrets.K6_PROMETHEUS_RW_PASSWORD }}
-        run: k6 run --out experimental-prometheus-rw k6/scripts/health-check.js
+          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+          K6_CLOUD_PROJECT_ID: ${{ secrets.K6_CLOUD_PROJECT_ID }}
+        run: k6 cloud run k6/scripts/health-check.js
         # k6 exits with code 99 when thresholds fail → step fails → PR is blocked
-        # metrics stream to Grafana Cloud Mimir in real time via Prometheus remote write
+        # results stream to Grafana Cloud k6 with a permanent URL per run
