@@ -102,5 +102,8 @@ jobs:
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
           K6_CLOUD_PROJECT_ID: ${{ secrets.K6_CLOUD_PROJECT_ID }}
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
+          # Service name for spans in Tempo
           K6_OTEL_SERVICE_NAME: k6-healthco
+          # Use plaintext gRPC — collector runs locally without TLS
+          K6_OTEL_GRPC_EXPORTER_INSECURE: "true"
         run: k6 run --out cloud --out opentelemetry k6/scripts/health-check.js
