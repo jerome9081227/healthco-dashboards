@@ -98,6 +98,7 @@ jobs:
       - name: Run k6 smoke test
         env:
           TARGET_URL: http://localhost:6789
+          # Grafana Cloud k6
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
           K6_CLOUD_PROJECT_ID: ${{ secrets.K6_CLOUD_PROJECT_ID }}
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
