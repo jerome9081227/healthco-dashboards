@@ -40,6 +40,6 @@ jobs:
         env:
           TARGET_URL: http://localhost:6789
           # Optional: send results to Grafana Cloud k6
-          # K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
-        run: k6 run tests/smoke.js
+          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+        run: k6 cloud run tests/smoke.js
         # k6 exits with code 99 when thresholds fail → step fails → PR is blocked
