@@ -38,6 +38,9 @@ jobs:
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
           K6_CLOUD_PROJECT_ID: ${{ secrets.K6_CLOUD_PROJECT_ID }}
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
-        run: k6 cloud run k6/scripts/health-check.js
+          OTEL_EXPORTER_OTLP_ENDPOINT: https://tempo-prod-30-prod-us-east-3.grafana.net/tempo
+          OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic ${{ secrets.TEMPO_AUTH_BASE64 }}"
+          OTEL_SERVICE_NAME: k6-healthco
+        run: k6 cloud run --out experimental-opentelemetry k6/scripts/health-check.js
         # k6 exits with code 99 when thresholds fail → step fails → PR is blocked
-        # results stream to Grafana Cloud k6 with a permanent URL per run
+        # metrics stream to Grafana Cloud k6, traces stream to Grafana Cloud Tempo
