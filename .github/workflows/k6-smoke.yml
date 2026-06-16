@@ -31,70 +31,76 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update && sudo apt-get install -y k6
 
-      - name: Start OTel Collector (forwards k6 traces to Grafana Cloud Tempo)
+      - name: Start OTel Collector (binary, no Docker)
         env:
           TEMPO_AUTH_BASE64: ${{ secrets.TEMPO_AUTH_BASE64 }}
         run: |
-          # Write the collector config — heredoc content is at col 0 after YAML de-indent
-          cat > /tmp/otel-collector-config.yaml << 'ENDOFCONFIG'
-          receivers:
-            otlp:
-              protocols:
-                grpc:
-                  endpoint: 0.0.0.0:4317
-          exporters:
-            otlphttp:
-              endpoint: https://tempo-prod-30-prod-us-east-3.grafana.net/tempo
-              headers:
-                authorization: "Basic TEMPO_AUTH_PLACEHOLDER"
-          service:
-            pipelines:
-              traces:
-                receivers: [otlp]
-                exporters: [otlphttp]
-          ENDOFCONFIG
+          set -euo pipefail
 
-          # Substitute auth token (can't expand vars inside single-quoted heredoc)
-          sed -i "s|TEMPO_AUTH_PLACEHOLDER|${TEMPO_AUTH_BASE64}|g" /tmp/otel-collector-config.yaml
+          # Download otelcol binary (core build — includes OTLP gRPC receiver + HTTP exporter)
+          echo "Downloading otelcol..."
+          curl -sSL -o /tmp/otelcol.tar.gz \
+            "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.102.0/otelcol_0.102.0_linux_amd64.tar.gz"
+          tar -xzf /tmp/otelcol.tar.gz -C /tmp otelcol
+          chmod +x /tmp/otelcol
+          /tmp/otelcol --version
 
-          echo "=== Collector config (auth redacted) ==="
-          sed 's/authorization:.*/authorization: [REDACTED]/' /tmp/otel-collector-config.yaml
+          # Write config (single-quoted heredoc, then sed in the secret)
+          cat > /tmp/otel-config.yaml << 'CFGEOF'
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: localhost:4317
+exporters:
+  otlphttp:
+    endpoint: https://tempo-prod-30-prod-us-east-3.grafana.net/tempo
+    headers:
+      authorization: "Basic __TEMPO_AUTH__"
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlphttp]
+CFGEOF
+          sed -i "s|__TEMPO_AUTH__|${TEMPO_AUTH_BASE64}|g" /tmp/otel-config.yaml
 
-          docker run -d \
-            --name otel-collector \
-            --network host \
-            -v /tmp/otel-collector-config.yaml:/etc/otel/config.yaml \
-            otel/opentelemetry-collector-contrib:0.102.0 \
-            --config /etc/otel/config.yaml
+          echo "=== Config (auth redacted) ==="
+          sed 's/authorization:.*/authorization: [REDACTED]/' /tmp/otel-config.yaml
 
-          # Wait up to 30s for the collector to bind port 4317
-          echo "Waiting for OTel Collector to bind port 4317..."
-          for i in $(seq 1 30); do
+          # Start collector as a background process
+          /tmp/otelcol --config /tmp/otel-config.yaml >> /tmp/otelcol.log 2>&1 &
+          OTEL_PID=$!
+          echo "Collector PID: ${OTEL_PID}"
+
+          # Wait up to 20s for port 4317 to open
+          echo "Waiting for port 4317..."
+          for i in $(seq 1 20); do
             if (echo > /dev/tcp/localhost/4317) 2>/dev/null; then
-              echo "Port 4317 open after ${i}s"
+              echo "Port 4317 open at ${i}s"
               break
+            fi
+            if ! kill -0 "${OTEL_PID}" 2>/dev/null; then
+              echo "ERROR: Collector exited before port opened"
+              cat /tmp/otelcol.log
+              exit 1
             fi
             sleep 1
           done
 
-          # Extra 5s to let it stabilise (avoid race where port opens then collector crashes)
-          sleep 5
+          # 3s stability pause
+          sleep 3
 
-          echo "=== Container status ==="
-          docker ps -a --filter name=otel-collector
+          echo "=== Collector startup log ==="
+          cat /tmp/otelcol.log
 
-          echo "=== Collector logs ==="
-          docker logs otel-collector
-
-          # Fail the step if the container has already exited
-          STATUS=$(docker inspect otel-collector --format '{{.State.Status}}')
-          echo "Container status: ${STATUS}"
-          if [ "${STATUS}" != "running" ]; then
-            echo "ERROR: OTel Collector exited — traces will not reach Tempo"
+          # Final liveness check
+          if ! kill -0 "${OTEL_PID}" 2>/dev/null; then
+            echo "ERROR: Collector exited after startup"
             exit 1
           fi
 
-          echo "OTel Collector is running on localhost:4317"
+          echo "OTel Collector is live on localhost:4317 (PID ${OTEL_PID})"
 
       - name: Run k6 smoke test
         env:
