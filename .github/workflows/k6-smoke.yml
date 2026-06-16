@@ -44,7 +44,7 @@ jobs:
           echo "=== Collector config (auth redacted) ==="
           sed 's/authorization:.*/authorization: [REDACTED]/' /tmp/otel-config.yaml
 
-          # Download otelcol binary (core build: OTLP gRPC receiver + HTTP exporter included)
+          # Download otelcol binary (core build: OTLP gRPC + HTTP receivers, HTTP exporter)
           echo "Downloading otelcol..."
           curl -sSL -o /tmp/otelcol.tar.gz \
             "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.102.0/otelcol_0.102.0_linux_amd64.tar.gz"
@@ -57,12 +57,12 @@ jobs:
           OTEL_PID=$!
           echo "Collector PID: ${OTEL_PID}"
 
-          # Wait up to 20s for port 4317 to open (bash /dev/tcp — no nc required)
-          echo "Waiting for port 4317..."
+          # Wait up to 20s for HTTP port 4318 to open
+          echo "Waiting for port 4318 (HTTP OTLP)..."
           READY=0
           for i in $(seq 1 20); do
-            if (echo > /dev/tcp/localhost/4317) 2>/dev/null; then
-              echo "Port 4317 open after ${i}s"
+            if (echo > /dev/tcp/localhost/4318) 2>/dev/null; then
+              echo "Port 4318 open after ${i}s"
               READY=1
               break
             fi
@@ -75,25 +75,23 @@ jobs:
           done
 
           if [ "${READY}" = "0" ]; then
-            echo "ERROR: Timed out waiting for port 4317"
+            echo "ERROR: Timed out waiting for port 4318"
             cat /tmp/otelcol.log
             exit 1
           fi
 
-          # 3s stability pause — let the collector fully initialise
           sleep 3
 
           echo "=== Collector startup log ==="
           cat /tmp/otelcol.log
 
-          # Final liveness check
           if ! kill -0 "${OTEL_PID}" 2>/dev/null; then
             echo "ERROR: Collector exited after startup"
             cat /tmp/otelcol.log
             exit 1
           fi
 
-          echo "OTel Collector live on localhost:4317 (PID ${OTEL_PID})"
+          echo "OTel Collector live — gRPC :4317, HTTP :4318 (PID ${OTEL_PID})"
 
       - name: Run k6 smoke test
         env:
@@ -104,6 +102,7 @@ jobs:
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
           # Service name for spans in Tempo
           K6_OTEL_SERVICE_NAME: k6-healthco
-          # Use plaintext gRPC — collector runs locally without TLS
-          K6_OTEL_GRPC_EXPORTER_INSECURE: "true"
+          # Use HTTP OTLP — k6 2.0 forces TLS on gRPC which breaks with a local collector
+          K6_OTEL_EXPORTER_TYPE: http
+          K6_OTEL_HTTP_EXPORTER_ENDPOINT: http://localhost:4318
         run: k6 run --out cloud --out opentelemetry k6/scripts/health-check.js
