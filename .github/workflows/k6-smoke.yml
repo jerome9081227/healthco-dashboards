@@ -39,13 +39,13 @@ jobs:
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
           K6_CLOUD_PROJECT_ID: ${{ secrets.K6_CLOUD_PROJECT_ID }}
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
-          # Grafana Cloud Tempo — k6-specific OTEL vars
-          # K6_OTEL_HEADERS (not K6_OTEL_EXPORTER_HEADERS) is the correct var
+          # Grafana Cloud Tempo — k6-specific OTEL vars (not standard OTEL_EXPORTER_OTLP_*)
+          # K6_OTEL_HEADERS is the correct var name (not K6_OTEL_EXPORTER_HEADERS)
           K6_OTEL_GRPC_EXPORTER_ENDPOINT: tempo-prod-30-prod-us-east-3.grafana.net:443
           K6_OTEL_GRPC_EXPORTER_INSECURE: "false"
           K6_OTEL_HEADERS: "authorization=Basic ${{ secrets.TEMPO_AUTH_BASE64 }}"
           K6_OTEL_SERVICE_NAME: k6-healthco
         run: k6 run --out cloud --out opentelemetry k6/scripts/health-check.js
         # k6 exits with code 99 when thresholds fail → step fails → PR is blocked
-        # --out cloud         → metrics stream to Grafana Cloud k6
-        # --out opentelemetry → traces stream to Grafana Cloud Tempo via gRPC/TLS port 443
+        # --out cloud         → metrics to Grafana Cloud k6
+        # --out opentelemetry → traces to Grafana Cloud Tempo via gRPC/TLS port 443
