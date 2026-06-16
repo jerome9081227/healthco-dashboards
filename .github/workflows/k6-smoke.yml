@@ -42,6 +42,6 @@ jobs:
           OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic ${{ secrets.TEMPO_AUTH_BASE64 }}"
           OTEL_SERVICE_NAME: k6-healthco
         run: k6 run --out cloud --out experimental-opentelemetry k6/scripts/health-check.js
-        # k6 exits with code 99 when thresholds fail → step fails → PR is blocked
+        # k6 exit with code 99 when thresholds fail → step fails → PR is blocked
         # --out cloud → metrics stream to Grafana Cloud k6
         # --out experimental-opentelemetry → traces stream to Grafana Cloud Tempo
