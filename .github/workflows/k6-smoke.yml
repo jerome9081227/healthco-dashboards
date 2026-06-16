@@ -1,0 +1,45 @@
+name: k6 Smoke Test (PR Gate)
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  k6-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # TODO: replace with your actual service startup
+      # Examples:
+      #   docker-compose up -d
+      #   docker build -t my-service . && docker run -d -p 6789:6789 my-service
+      #   make run &
+      - name: Start service
+        run: |
+          echo "TODO: add service startup command"
+
+      - name: Wait for service to be healthy
+        run: |
+          timeout 60 bash -c \
+            'until curl -sf http://localhost:6789/health; do echo "waiting..."; sleep 2; done'
+
+      - name: Install k6
+        run: |
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install k6
+
+      - name: Run k6 smoke test
+        env:
+          TARGET_URL: http://localhost:6789
+          # Optional: send results to Grafana Cloud k6
+          # K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+        run: k6 run tests/smoke.js
+        # k6 exits with code 99 when thresholds fail → step fails → PR is blocked
