@@ -1,5 +1,11 @@
-import { Http } from 'k6/experimental/tracing';
+import { instrumentHTTP } from 'https://jslib.k6.io/http-instrumentation-tempo/1.0.0/index.js';
+import http from 'k6/http';
 import { check, sleep } from 'k6';
+
+// Instruments the built-in http module to inject W3C traceparent headers
+// into every request, so correlated traces appear in Tempo when the target
+// service is OTel-instrumented. (k6/experimental/tracing removed in k6 2.0)
+instrumentHTTP({ propagator: 'w3c' });
 
 export const options = {
   vus: 5,
@@ -12,19 +18,11 @@ export const options = {
 
 const TARGET_URL = __ENV.TARGET_URL || 'https://test-api.k6.io';
 
-// Injects W3C traceparent header into every request so correlated traces
-// appear in Tempo when the target service is OTel-instrumented
-const http = new Http({
-  propagator: 'w3c',
-});
-
 export default function () {
   const res = http.get(`${TARGET_URL}/`);
-
   check(res, {
     'status is 200': (r) => r.status === 200,
     'response time < 500ms': (r) => r.timings.duration < 500,
   });
-
   sleep(1);
 }
