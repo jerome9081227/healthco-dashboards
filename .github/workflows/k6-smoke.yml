@@ -39,5 +39,5 @@ jobs:
           K6_CLOUD_PROJECT_ID: ${{ secrets.K6_CLOUD_PROJECT_ID }}
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
         run: k6 cloud run k6/scripts/health-check.js
-        # k6 exits with code 99 when thresholds fail → step fails → PR is blocked
+        # k6 exits w/ code 99 when thresholds fail → step fails → PR is blocked
         # results stream to Grafana Cloud k6 with a permanent URL per run
