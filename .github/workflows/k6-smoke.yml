@@ -92,12 +92,14 @@ jobs:
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
           K6_CLOUD_PROJECT_ID: ${{ secrets.K6_CLOUD_PROJECT_ID }}
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
-          # K6_OTEL_EXPORTER_TYPE=http makes k6 use insecure gRPC to localhost:4317.
-          # K6_OTEL_HTTP_EXPORTER_ENDPOINT must point to the HTTP port (4318) for the
-          # insecure-gRPC resolution to work correctly — do NOT use port 4317 here.
+          K6_OTEL_SERVICE_NAME: k6-healthco
+          # k6-specific OTLP env vars
           K6_OTEL_EXPORTER_TYPE: http
           K6_OTEL_HTTP_EXPORTER_ENDPOINT: http://localhost:4318
-          K6_OTEL_SERVICE_NAME: k6-healthco
+          # Standard OTel SDK env vars — cover k6's internal metric provider
+          # and ensure all OTel SDK usage routes through the local collector
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
+          OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
         run: k6 run --out cloud --out opentelemetry k6/scripts/health-check.js
 
       - name: Dump OTel Collector logs (check Tempo export)
