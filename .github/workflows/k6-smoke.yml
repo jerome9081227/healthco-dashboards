@@ -17,9 +17,10 @@ jobs:
       #   docker-compose up -d
       #   docker build -t my-service . && docker run -d -p 6789:6789 my-service
       #   make run &
-      - name: Start service
+      - name: Start mock service
         run: |
-          echo "TODO: add service startup command"
+          python3 -m http.server 6789 &
+          sleep 2
 
       - name: Wait for service to be healthy
         run: |
