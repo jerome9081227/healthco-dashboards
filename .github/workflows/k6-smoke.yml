@@ -31,13 +31,20 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update && sudo apt-get install -y k6
 
-      - name: Start OTel Collector (binary, no Docker)
+      - name: Start OTel Collector
         env:
           TEMPO_AUTH_BASE64: ${{ secrets.TEMPO_AUTH_BASE64 }}
         run: |
           set -euo pipefail
 
-          # Download otelcol binary (core build — includes OTLP gRPC receiver + HTTP exporter)
+          # Inject auth token into the checked-out config template
+          sed "s|__TEMPO_AUTH__|${TEMPO_AUTH_BASE64}|g" \
+            k6/otel-collector-config.yaml > /tmp/otel-config.yaml
+
+          echo "=== Collector config (auth redacted) ==="
+          sed 's/authorization:.*/authorization: [REDACTED]/' /tmp/otel-config.yaml
+
+          # Download otelcol binary (core build: OTLP gRPC receiver + HTTP exporter included)
           echo "Downloading otelcol..."
           curl -sSL -o /tmp/otelcol.tar.gz \
             "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.102.0/otelcol_0.102.0_linux_amd64.tar.gz"
@@ -45,39 +52,18 @@ jobs:
           chmod +x /tmp/otelcol
           /tmp/otelcol --version
 
-          # Write config (single-quoted heredoc, then sed in the secret)
-          cat > /tmp/otel-config.yaml << 'CFGEOF'
-receivers:
-  otlp:
-    protocols:
-      grpc:
-        endpoint: localhost:4317
-exporters:
-  otlphttp:
-    endpoint: https://tempo-prod-30-prod-us-east-3.grafana.net/tempo
-    headers:
-      authorization: "Basic __TEMPO_AUTH__"
-service:
-  pipelines:
-    traces:
-      receivers: [otlp]
-      exporters: [otlphttp]
-CFGEOF
-          sed -i "s|__TEMPO_AUTH__|${TEMPO_AUTH_BASE64}|g" /tmp/otel-config.yaml
-
-          echo "=== Config (auth redacted) ==="
-          sed 's/authorization:.*/authorization: [REDACTED]/' /tmp/otel-config.yaml
-
-          # Start collector as a background process
-          /tmp/otelcol --config /tmp/otel-config.yaml >> /tmp/otelcol.log 2>&1 &
+          # Start collector as background process, logs to file
+          /tmp/otelcol --config /tmp/otel-config.yaml > /tmp/otelcol.log 2>&1 &
           OTEL_PID=$!
           echo "Collector PID: ${OTEL_PID}"
 
-          # Wait up to 20s for port 4317 to open
+          # Wait up to 20s for port 4317 to open (bash /dev/tcp — no nc required)
           echo "Waiting for port 4317..."
+          READY=0
           for i in $(seq 1 20); do
             if (echo > /dev/tcp/localhost/4317) 2>/dev/null; then
-              echo "Port 4317 open at ${i}s"
+              echo "Port 4317 open after ${i}s"
+              READY=1
               break
             fi
             if ! kill -0 "${OTEL_PID}" 2>/dev/null; then
@@ -88,7 +74,13 @@ CFGEOF
             sleep 1
           done
 
-          # 3s stability pause
+          if [ "${READY}" = "0" ]; then
+            echo "ERROR: Timed out waiting for port 4317"
+            cat /tmp/otelcol.log
+            exit 1
+          fi
+
+          # 3s stability pause — let the collector fully initialise
           sleep 3
 
           echo "=== Collector startup log ==="
@@ -97,10 +89,11 @@ CFGEOF
           # Final liveness check
           if ! kill -0 "${OTEL_PID}" 2>/dev/null; then
             echo "ERROR: Collector exited after startup"
+            cat /tmp/otelcol.log
             exit 1
           fi
 
-          echo "OTel Collector is live on localhost:4317 (PID ${OTEL_PID})"
+          echo "OTel Collector live on localhost:4317 (PID ${OTEL_PID})"
 
       - name: Run k6 smoke test
         env:
