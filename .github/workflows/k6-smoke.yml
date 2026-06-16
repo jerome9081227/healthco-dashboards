@@ -35,15 +35,17 @@ jobs:
       - name: Run k6 smoke test
         env:
           TARGET_URL: http://localhost:6789
+          # Grafana Cloud k6
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
           K6_CLOUD_PROJECT_ID: ${{ secrets.K6_CLOUD_PROJECT_ID }}
           K6_CLOUD_STACK_ID: ${{ secrets.K6_CLOUD_STACK_ID }}
-          OTEL_EXPORTER_OTLP_ENDPOINT: https://tempo-prod-30-prod-us-east-3.grafana.net/tempo
-          OTEL_EXPORTER_OTLP_HEADERS: "Authorization=Basic ${{ secrets.TEMPO_AUTH_BASE64 }}"
-          OTEL_SERVICE_NAME: k6-healthco
-          K6_TRACING_PROPAGATOR: w3c
-        run: k6 run --out cloud --out experimental-opentelemetry k6/scripts/health-check.js
+          # Grafana Cloud Tempo — k6-specific OTEL vars
+          # K6_OTEL_HEADERS (not K6_OTEL_EXPORTER_HEADERS) is the correct var
+          K6_OTEL_GRPC_EXPORTER_ENDPOINT: tempo-prod-30-prod-us-east-3.grafana.net:443
+          K6_OTEL_GRPC_EXPORTER_INSECURE: "false"
+          K6_OTEL_HEADERS: "authorization=Basic ${{ secrets.TEMPO_AUTH_BASE64 }}"
+          K6_OTEL_SERVICE_NAME: k6-healthco
+        run: k6 run --out cloud --out opentelemetry k6/scripts/health-check.js
         # k6 exits with code 99 when thresholds fail → step fails → PR is blocked
-        # --out cloud → metrics stream to Grafana Cloud k6
-        # --out experimental-opentelemetry → traces stream to Grafana Cloud Tempo
-        # K6_TRACING_PROPAGATOR → injects W3C traceparent headers for app correlation
+        # --out cloud         → metrics stream to Grafana Cloud k6
+        # --out opentelemetry → traces stream to Grafana Cloud Tempo via gRPC/TLS port 443
