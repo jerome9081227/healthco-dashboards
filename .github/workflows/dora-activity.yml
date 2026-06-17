@@ -1,0 +1,63 @@
+name: DORA Metrics Activity Generator
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9am UTC
+  workflow_dispatch:      # Manual trigger from GitHub UI
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate-dora-activity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # ── Lead Time for Changes: create branch, commit, PR, merge ──────────
+      - name: Create feature branch and commit
+        run: |
+          BRANCH="deploy/$(date +%Y-%m-%d-%H%M)"
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          git checkout -b $BRANCH
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> .deployments
+          git add .deployments
+          git commit -m "chore: weekly deployment $(date +%Y-%m-%d)"
+          git push origin $BRANCH
+
+      - name: Open pull request
+        id: open_pr
+        run: |
+          PR_URL=$(gh pr create \
+            --title "chore: weekly deployment $(date +%Y-%m-%d)" \
+            --body "Automated weekly deployment PR for DORA Lead Time tracking." \
+            --head "$BRANCH" \
+            --base main)
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge pull request
+        run: |
+          gh pr merge "${{ steps.open_pr.outputs.pr_url }}" --squash --delete-branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Deployment Frequency: create a versioned release ─────────────────
+      - name: Create release
+        run: |
+          git checkout main
+          git pull origin main
+          TAG="v$(date +%Y.%-m.%-d)"
+          gh release create "$TAG" \
+            --title "Deployment $TAG" \
+            --notes "Automated weekly deployment release."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
