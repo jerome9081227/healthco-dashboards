@@ -13,7 +13,7 @@ grafana_token = "glsa_xxxxxxxxxxxxxxxxxxxx"
 # GitHub Personal Access Token
 # Create one at: https://github.com/settings/tokens
 # Scopes required: repo (full), read:org
-github_token = "ghp_xxxxxxxxxxxxxxxxxxxx"
+github_token = "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"
 
 # GitHub account or org to pull metrics from
 github_owner = "jerome9081227"
