@@ -1,6 +1,6 @@
-# DORA Metrics Dashboard — fixed panel queries and field overrides
-# Hides boolean fields (is_draft, is_prerelease, closed) from all visualizations
-# Runs terraform apply to update the dashboard in Grafana
+# DORA Metrics Dashboard
+# Uses table panels throughout — avoids "missing number field" errors
+# from the GitHub datasource returning only string/boolean fields
 
 resource "grafana_dashboard" "dora_metrics" {
   config_json = jsonencode({
@@ -34,11 +34,11 @@ resource "grafana_dashboard" "dora_metrics" {
         gridPos = { h = 1, w = 24, x = 0, y = 0 }
       },
       {
-        type        = "timeseries"
-        title       = "Releases per Day"
+        type        = "table"
+        title       = "Recent Releases"
         id          = 2
-        description = "Each point = one GitHub Release. Draft and pre-releases are hidden. Elite = multiple/day."
-        gridPos     = { h = 8, w = 12, x = 0, y = 1 }
+        description = "All non-draft releases. Each row = one deployment. Elite = multiple per day."
+        gridPos     = { h = 8, w = 16, x = 0, y = 1 }
         datasource  = { type = "grafana-github-datasource", uid = "github-dora" }
         targets = [{
           refId      = "A"
@@ -49,32 +49,25 @@ resource "grafana_dashboard" "dora_metrics" {
         transformations = [
           {
             id = "filterFieldsByName"
-            options = {
-              include = { names = ["publishedAt", "tagName", "name"] }
-            }
+            options = { include = { names = ["tagName", "name", "publishedAt", "repository"] } }
+          },
+          {
+            id      = "sortBy"
+            options = { fields = [{ desc = true, displayName = "publishedAt" }] }
           }
         ]
-        options = {
-          tooltip = { mode = "multi" }
-          legend  = { displayMode = "list", placement = "bottom" }
-        }
+        options = { footer = { show = false } }
         fieldConfig = {
-          defaults = {
-            custom = { lineWidth = 0, fillOpacity = 0, drawStyle = "points", pointSize = 8 }
-            color  = { mode = "fixed", fixedColor = "green" }
-          }
-          overrides = [
-            { matcher = { id = "byName", options = "is_draft" },      properties = [{ id = "custom.hideFrom", value = { legend = true, tooltip = true, viz = true } }] },
-            { matcher = { id = "byName", options = "is_prerelease" }, properties = [{ id = "custom.hideFrom", value = { legend = true, tooltip = true, viz = true } }] }
-          ]
+          defaults  = { custom = { align = "auto" } }
+          overrides = []
         }
       },
       {
         type        = "stat"
         title       = "Total Releases (30d)"
         id          = 3
-        description = "Count of releases published in the last 30 days."
-        gridPos     = { h = 8, w = 12, x = 12, y = 1 }
+        description = "Count of releases in the last 30 days. Green = 8+, Yellow = 2+, Red = <2."
+        gridPos     = { h = 8, w = 8, x = 16, y = 1 }
         datasource  = { type = "grafana-github-datasource", uid = "github-dora" }
         targets = [{
           refId      = "A"
@@ -82,11 +75,16 @@ resource "grafana_dashboard" "dora_metrics" {
           owner      = "jerome9081227"
           repository = "$repo"
         }]
+        transformations = [
+          {
+            id = "filterFieldsByName"
+            options = { include = { names = ["tagName"] } }
+          }
+        ]
         options = {
-          reduceOptions = { calcs = ["count"] }
+          reduceOptions = { calcs = ["count"], fields = "/^tagName$/", values = false }
           colorMode     = "background"
           textMode      = "auto"
-          orientation   = "auto"
         }
         fieldConfig = {
           defaults = {
@@ -98,12 +96,8 @@ resource "grafana_dashboard" "dora_metrics" {
                 { color = "green",  value = 8 }
               ]
             }
-            mappings = []
           }
-          overrides = [
-            { matcher = { id = "byName", options = "is_draft" },      properties = [{ id = "custom.hideFrom", value = { legend = true, tooltip = true, viz = true } }] },
-            { matcher = { id = "byName", options = "is_prerelease" }, properties = [{ id = "custom.hideFrom", value = { legend = true, tooltip = true, viz = true } }] }
-          ]
+          overrides = []
         }
       },
 
@@ -116,31 +110,38 @@ resource "grafana_dashboard" "dora_metrics" {
       },
       {
         type        = "table"
-        title       = "Recent Merged PRs"
+        title       = "Recent Pull Requests"
         id          = 11
-        description = "Merged PRs in the last 30 days. Lead time = time from PR opened to merged."
-        gridPos     = { h = 8, w = 12, x = 0, y = 10 }
+        description = "Merged PRs — lead time = gap between createdAt and mergedAt."
+        gridPos     = { h = 8, w = 16, x = 0, y = 10 }
         datasource  = { type = "grafana-github-datasource", uid = "github-dora" }
         targets = [{
           refId      = "A"
           queryType  = "Pull Requests"
           owner      = "jerome9081227"
           repository = "$repo"
-          filters    = [{ field = "state", value = "MERGED" }]
         }]
         transformations = [
           {
             id = "filterFieldsByName"
+            options = { include = { names = ["title", "state", "createdAt", "mergedAt", "repository"] } }
+          },
+          {
+            id      = "filterByValue"
             options = {
-              include = { names = ["title", "createdAt", "mergedAt", "repository"] }
+              filters = [{ fieldName = "state", config = { id = "equal", options = { value = "MERGED" } } }]
+              match   = "any"
+              type    = "include"
             }
+          },
+          {
+            id      = "sortBy"
+            options = { fields = [{ desc = true, displayName = "mergedAt" }] }
           }
         ]
-        options = {
-          sortBy = [{ displayName = "mergedAt", desc = true }]
-        }
+        options = { footer = { show = false } }
         fieldConfig = {
-          defaults = { custom = { align = "auto" } }
+          defaults  = { custom = { align = "auto" } }
           overrides = []
         }
       },
@@ -149,17 +150,30 @@ resource "grafana_dashboard" "dora_metrics" {
         title       = "PRs Merged (30d)"
         id          = 12
         description = "Total pull requests merged in the last 30 days."
-        gridPos     = { h = 8, w = 12, x = 12, y = 10 }
+        gridPos     = { h = 8, w = 8, x = 16, y = 10 }
         datasource  = { type = "grafana-github-datasource", uid = "github-dora" }
         targets = [{
           refId      = "A"
           queryType  = "Pull Requests"
           owner      = "jerome9081227"
           repository = "$repo"
-          filters    = [{ field = "state", value = "MERGED" }]
         }]
+        transformations = [
+          {
+            id = "filterFieldsByName"
+            options = { include = { names = ["title", "state"] } }
+          },
+          {
+            id      = "filterByValue"
+            options = {
+              filters = [{ fieldName = "state", config = { id = "equal", options = { value = "MERGED" } } }]
+              match   = "any"
+              type    = "include"
+            }
+          }
+        ]
         options = {
-          reduceOptions = { calcs = ["count"] }
+          reduceOptions = { calcs = ["count"], fields = "/^title$/", values = false }
           colorMode     = "background"
         }
         fieldConfig = {
@@ -188,33 +202,33 @@ resource "grafana_dashboard" "dora_metrics" {
         type        = "table"
         title       = "Hotfix / Rollback Releases"
         id          = 21
-        description = "Releases with 'hotfix' or 'rollback' in the tag name."
-        gridPos     = { h = 8, w = 12, x = 0, y = 19 }
+        description = "Releases whose tag starts with 'hotfix-' or 'rollback-'."
+        gridPos     = { h = 8, w = 16, x = 0, y = 19 }
         datasource  = { type = "grafana-github-datasource", uid = "github-dora" }
-        targets = [
-          {
-            refId      = "A"
-            queryType  = "Releases"
-            owner      = "jerome9081227"
-            repository = "$repo"
-            filters    = [{ field = "tagName", value = "hotfix" }]
-          },
-          {
-            refId      = "B"
-            queryType  = "Releases"
-            owner      = "jerome9081227"
-            repository = "$repo"
-            filters    = [{ field = "tagName", value = "rollback" }]
-          }
-        ]
+        targets = [{
+          refId      = "A"
+          queryType  = "Releases"
+          owner      = "jerome9081227"
+          repository = "$repo"
+        }]
         transformations = [
           {
             id = "filterFieldsByName"
+            options = { include = { names = ["tagName", "name", "publishedAt", "repository"] } }
+          },
+          {
+            id      = "filterByValue"
             options = {
-              include = { names = ["tagName", "name", "publishedAt", "repository"] }
+              filters = [
+                { fieldName = "tagName", config = { id = "includesSubstring", options = { value = "hotfix" } } },
+                { fieldName = "tagName", config = { id = "includesSubstring", options = { value = "rollback" } } }
+              ]
+              match = "any"
+              type  = "include"
             }
           }
         ]
+        options = { footer = { show = false } }
         fieldConfig = {
           defaults  = { custom = { align = "auto" } }
           overrides = []
@@ -224,27 +238,34 @@ resource "grafana_dashboard" "dora_metrics" {
         type        = "stat"
         title       = "Hotfix Releases (30d)"
         id          = 22
-        description = "Count of releases tagged with 'hotfix-' or 'rollback-'. Target = 0."
-        gridPos     = { h = 8, w = 12, x = 12, y = 19 }
+        description = "Count of hotfix/rollback releases. Target = 0 (green)."
+        gridPos     = { h = 8, w = 8, x = 16, y = 19 }
         datasource  = { type = "grafana-github-datasource", uid = "github-dora" }
-        targets = [
+        targets = [{
+          refId      = "A"
+          queryType  = "Releases"
+          owner      = "jerome9081227"
+          repository = "$repo"
+        }]
+        transformations = [
           {
-            refId      = "A"
-            queryType  = "Releases"
-            owner      = "jerome9081227"
-            repository = "$repo"
-            filters    = [{ field = "tagName", value = "hotfix" }]
+            id = "filterFieldsByName"
+            options = { include = { names = ["tagName"] } }
           },
           {
-            refId      = "B"
-            queryType  = "Releases"
-            owner      = "jerome9081227"
-            repository = "$repo"
-            filters    = [{ field = "tagName", value = "rollback" }]
+            id      = "filterByValue"
+            options = {
+              filters = [
+                { fieldName = "tagName", config = { id = "includesSubstring", options = { value = "hotfix" } } },
+                { fieldName = "tagName", config = { id = "includesSubstring", options = { value = "rollback" } } }
+              ]
+              match = "any"
+              type  = "include"
+            }
           }
         ]
         options = {
-          reduceOptions = { calcs = ["count"] }
+          reduceOptions = { calcs = ["count"], fields = "/^tagName$/", values = false }
           colorMode     = "background"
         }
         fieldConfig = {
@@ -274,7 +295,7 @@ resource "grafana_dashboard" "dora_metrics" {
         title       = "Closed Incidents"
         id          = 31
         description = "GitHub Issues labeled 'incident' that have been closed."
-        gridPos     = { h = 8, w = 12, x = 0, y = 28 }
+        gridPos     = { h = 8, w = 16, x = 0, y = 28 }
         datasource  = { type = "grafana-github-datasource", uid = "github-dora" }
         targets = [{
           refId      = "A"
@@ -289,14 +310,14 @@ resource "grafana_dashboard" "dora_metrics" {
         transformations = [
           {
             id = "filterFieldsByName"
-            options = {
-              include = { names = ["title", "createdAt", "closedAt", "repository"] }
-            }
+            options = { include = { names = ["title", "createdAt", "closedAt", "repository"] } }
+          },
+          {
+            id      = "sortBy"
+            options = { fields = [{ desc = true, displayName = "closedAt" }] }
           }
         ]
-        options = {
-          sortBy = [{ displayName = "closedAt", desc = true }]
-        }
+        options = { footer = { show = false } }
         fieldConfig = {
           defaults  = { custom = { align = "auto" } }
           overrides = []
@@ -306,8 +327,8 @@ resource "grafana_dashboard" "dora_metrics" {
         type        = "stat"
         title       = "Median MTTR (30d)"
         id          = 32
-        description = "Median time to close 'incident' labeled issues."
-        gridPos     = { h = 8, w = 12, x = 12, y = 28 }
+        description = "Median time to resolve an 'incident' labeled issue."
+        gridPos     = { h = 8, w = 8, x = 16, y = 28 }
         datasource  = { type = "grafana-github-datasource", uid = "github-dora" }
         targets = [{
           refId      = "A"
@@ -336,7 +357,7 @@ resource "grafana_dashboard" "dora_metrics" {
             }
           }
           overrides = [
-            { matcher = { id = "byName", options = "closed" }, properties = [{ id = "custom.hideFrom", value = { legend = true, tooltip = true, viz = true } }] },
+            { matcher = { id = "byName", options = "closed" },  properties = [{ id = "custom.hideFrom", value = { legend = true, tooltip = true, viz = true } }] },
             { matcher = { id = "byName", options = "number" }, properties = [{ id = "custom.hideFrom", value = { legend = true, tooltip = true, viz = true } }] }
           ]
         }
