@@ -1,0 +1,16 @@
+# Terraform credentials — never commit these
+terraform/terraform.tfvars
+terraform/*.auto.tfvars
+terraform/catalog.auto.tfvars
+
+# Terraform state and cache
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Coverage artifacts
+coverage.json

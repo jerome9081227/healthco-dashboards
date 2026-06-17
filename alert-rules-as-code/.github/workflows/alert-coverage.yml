@@ -1,0 +1,88 @@
+name: Alert Coverage Gate
+
+on:
+  pull_request:
+    paths:
+      - 'service-registry/**'
+      - 'terraform/**'
+      - 'scripts/**'
+
+jobs:
+  coverage-check:
+    name: Verify alert coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make coverage script executable
+        run: chmod +x scripts/coverage-check.sh
+
+      - name: Run coverage gate
+        run: ./scripts/coverage-check.sh
+
+      - name: Generate coverage JSON
+        if: always()
+        run: python3 scripts/coverage-report.py --json > coverage.json
+
+      - name: Post coverage summary to PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const coverage = JSON.parse(fs.readFileSync('coverage.json', 'utf8'));
+            const pct = coverage.coverage_percent;
+            const emoji = pct === 100 ? '✅' : pct >= 80 ? '⚠️' : '❌';
+
+            let body = `## ${emoji} Alert Coverage: ${pct}% (${coverage.full_coverage_count}/${coverage.total_services} services)\n\n`;
+
+            if (coverage.no_coverage.length > 0) {
+              body += `### ❌ No coverage (${coverage.no_coverage.length} services)\n`;
+              coverage.no_coverage.forEach(s => body += `- \`${s}\`\n`);
+              body += '\n';
+            }
+
+            if (coverage.partial_coverage.length > 0) {
+              body += `### ⚠️ Partial coverage (${coverage.partial_coverage.length} services)\n`;
+              coverage.partial_coverage.forEach(s => {
+                body += `- \`${s.service}\`: missing **${s.missing.join(', ')}**\n`;
+              });
+              body += '\n';
+            }
+
+            if (pct === 100) {
+              body += `All ${coverage.total_services} services have full golden signal coverage.\n`;
+              body += `Total alert rules: ${coverage.total_services * 4}\n`;
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+  terraform-validate:
+    name: Validate Terraform syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.5"
+
+      - name: terraform init (no backend)
+        working-directory: alert-rules-as-code/terraform
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        working-directory: alert-rules-as-code/terraform
+        run: terraform validate
+
+      - name: terraform fmt check
+        working-directory: alert-rules-as-code/terraform
+        run: terraform fmt -check -recursive

@@ -1,0 +1,34 @@
+# ---------------------------------------------------------------------------
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit real credentials.
+# ---------------------------------------------------------------------------
+
+grafana_url    = "https://YOUR-ORG.grafana.net"   # your Grafana Cloud URL
+grafana_auth   = "glsa_YOURTOKEN"                  # service account token (alerting:write)
+datasource_uid = "grafana-testdata-datasource"     # swap for your Mimir UID when using real metrics
+
+services = {
+
+  # ── Payments alliance (Tier 1) ───────────────────────────────────────────
+  "checkout-service" = {
+    alliance              = "payments"
+    tier                  = "1"
+    latency_threshold     = 0.5
+    error_threshold       = 0.05
+    saturation_threshold  = 0.85
+    oncall_team           = "payments-sre"
+    runbook_base_url      = "https://runbooks.internal/payments/checkout"
+  }
+
+  "payment-gateway" = {
+    alliance              = "payments"
+    tier                  = "1"
+    latency_threshold     = 1.0
+    error_threshold       = 0.01
+    saturation_threshold  = 0.80
+    oncall_team           = "payments-sre"
+    runbook_base_url      = "https://runbooks.internal/payments/gateway"
+  }
+
+  # Add more services here — each entry creates 4 alert rules automatically
+}

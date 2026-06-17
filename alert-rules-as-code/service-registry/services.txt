@@ -1,0 +1,8 @@
+checkout-service
+payment-gateway
+fraud-detection
+inventory-service
+order-processor
+shipping-service
+notification-service
+auth-service
