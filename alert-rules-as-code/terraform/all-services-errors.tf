@@ -1,6 +1,6 @@
 resource "grafana_rule_group" "all_services_error_logs" {
   name             = "log-alerts"
-  folder_uid       = "alerts" # update to match your folder UID
+  folder_uid       = "ffibotdlti2v4a"
   interval_seconds = 60
 
   rule {
