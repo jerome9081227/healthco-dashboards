@@ -1,4 +1,4 @@
-# ---------------------------------------------------------------------------
+—────────────────────────────────────────────────────────────────→───────────────────────────────────────────────────────—→─────────────────────────────────────────────────────────────────→─────────────────────────────────────────────────────────────→# ---------------------------------------------------------------------------
 # Alert Rules as Code — Golden Signal rules, one group per service
 # ---------------------------------------------------------------------------
 #
@@ -10,7 +10,7 @@
 # No Grafana UI interaction required.
 #
 # Datasource note:
-#   Default uses grafana-testdata-datasource so the demo runs without real
+   Default uses grafana-testdata-datasource so the demo runs without real
 #   metrics. Each "data" block references a TestData scenario that generates
 #   synthetic time-series; the threshold expressions evaluate against it.
 #   Swap datasource_uid + PromQL expressions for Mimir in production.
@@ -45,7 +45,10 @@ resource "grafana_rule_group" "golden_signals" {
     data {
       ref_id         = "metrics"
       datasource_uid = var.datasource_uid
-      relative_time_range { from = 300; to = 0 }
+            relative_time_range {
+        from = 300
+        to   = 0
+      }
       model = jsonencode({
         refId      = "metrics"
         scenarioId = "random_walk"
@@ -57,7 +60,10 @@ resource "grafana_rule_group" "golden_signals" {
     data {
       ref_id         = "threshold"
       datasource_uid = "__expr__"
-      relative_time_range { from = 300; to = 0 }
+            relative_time_range {
+        from = 300
+        to   = 0
+      }
       model = jsonencode({
         refId      = "threshold"
         type       = "threshold"
@@ -95,7 +101,10 @@ resource "grafana_rule_group" "golden_signals" {
     data {
       ref_id         = "metrics"
       datasource_uid = var.datasource_uid
-      relative_time_range { from = 300; to = 0 }
+            relative_time_range {
+        from = 300
+        to   = 0
+      }
       model = jsonencode({
         refId      = "metrics"
         scenarioId = "random_walk"
@@ -107,7 +116,10 @@ resource "grafana_rule_group" "golden_signals" {
     data {
       ref_id         = "threshold"
       datasource_uid = "__expr__"
-      relative_time_range { from = 300; to = 0 }
+            relative_time_range {
+        from = 300
+        to   = 0
+      }
       model = jsonencode({
         refId      = "threshold"
         type       = "threshold"
@@ -145,7 +157,10 @@ resource "grafana_rule_group" "golden_signals" {
     data {
       ref_id         = "metrics"
       datasource_uid = var.datasource_uid
-      relative_time_range { from = 300; to = 0 }
+            relative_time_range {
+        from = 300
+        to   = 0
+      }
       model = jsonencode({
         refId      = "metrics"
         scenarioId = "random_walk"
@@ -157,7 +172,10 @@ resource "grafana_rule_group" "golden_signals" {
     data {
       ref_id         = "threshold"
       datasource_uid = "__expr__"
-      relative_time_range { from = 300; to = 0 }
+            relative_time_range {
+        from = 300
+        to   = 0
+      }
       model = jsonencode({
         refId      = "threshold"
         type       = "threshold"
@@ -195,7 +213,10 @@ resource "grafana_rule_group" "golden_signals" {
     data {
       ref_id         = "metrics"
       datasource_uid = var.datasource_uid
-      relative_time_range { from = 600; to = 0 }
+            relative_time_range {
+        from = 600
+        to   = 0
+      }
       model = jsonencode({
         refId      = "metrics"
         scenarioId = "random_walk"
@@ -207,7 +228,10 @@ resource "grafana_rule_group" "golden_signals" {
     data {
       ref_id         = "threshold"
       datasource_uid = "__expr__"
-      relative_time_range { from = 600; to = 0 }
+            relative_time_range {
+        from = 600
+        to   = 0
+      }
       model = jsonencode({
         refId      = "threshold"
         type       = "threshold"
