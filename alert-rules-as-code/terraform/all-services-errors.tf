@@ -59,7 +59,7 @@ resource "grafana_rule_group" "all_services_error_logs" {
           type = "query"
           evaluator = {
             type   = "gt"
-            params = [0]
+                    params = [10]
           }
           operator = {
             type = "and"
@@ -80,7 +80,7 @@ resource "grafana_rule_group" "all_services_error_logs" {
     }
 
     annotations = {
-      summary = "Error logs detected across all services"
+            summary = "More than 10 error logs detected in the last 5 minutes across all services"
     }
 
     no_data_state  = "NoData"
