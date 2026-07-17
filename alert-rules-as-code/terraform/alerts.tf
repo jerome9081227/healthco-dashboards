@@ -1,4 +1,4 @@
-—────────────────────────────────────────────────────────────────→───────────────────────────────────────────────────────—→─────────────────────────────────────────────────────────────────→─────────────────────────────────────────────────────────────→# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Alert Rules as Code — Golden Signal rules, one group per service
 # ---------------------------------------------------------------------------
 #
@@ -10,7 +10,7 @@
 # No Grafana UI interaction required.
 #
 # Datasource note:
-   Default uses grafana-testdata-datasource so the demo runs without real
+   # Default uses grafana-testdata-datasource so the demo runs without real
 #   metrics. Each "data" block references a TestData scenario that generates
 #   synthetic time-series; the threshold expressions evaluate against it.
 #   Swap datasource_uid + PromQL expressions for Mimir in production.
