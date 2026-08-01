@@ -118,9 +118,9 @@ resource "grafana_rule_group" "aci_golden_signals" {
       summary = "${each.value} p95 latency exceeded ${var.latency_p95_threshold_ns / 1000000}ms"
     }
     labels = {
-      service_name = each.value
-      signal       = "latency"
-      team         = "aci"
+      service = each.value
+      signal  = "latency"
+      team    = "aci"
     }
     notification_settings {
       contact_point = var.notification_contact_point
@@ -179,10 +179,10 @@ resource "grafana_rule_group" "aci_golden_signals" {
       summary = "${each.value} request rate dropped near zero — possible outage"
     }
     labels = {
-      service  = each.value
-      signal   = "traffic"
-      team     = "aci"
-      severity = "critical"
+      service_name = each.value
+      signal       = "traffic"
+      team         = "aci"
+      severity     = "critical"
     }
     notification_settings {
       contact_point = var.notification_contact_point
