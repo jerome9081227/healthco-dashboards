@@ -57,9 +57,9 @@ resource "grafana_rule_group" "aci_golden_signals" {
       summary = "${each.value} error span rate exceeded ${var.error_rate_threshold_reqps} req/s"
     }
     labels = {
-      service_name = each.value
-      signal       = "errors"
-      team         = "aci"
+      service = each.value
+      signal  = "errors"
+      team    = "aci"
     }
     notification_settings {
       contact_point = var.notification_contact_point
@@ -118,9 +118,9 @@ resource "grafana_rule_group" "aci_golden_signals" {
       summary = "${each.value} p95 latency exceeded ${var.latency_p95_threshold_ns / 1000000}ms"
     }
     labels = {
-      service = each.value
-      signal  = "latency"
-      team    = "aci"
+      service_name = each.value
+      signal       = "latency"
+      team         = "aci"
     }
     notification_settings {
       contact_point = var.notification_contact_point
