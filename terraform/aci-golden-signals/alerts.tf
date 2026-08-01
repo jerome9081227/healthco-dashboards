@@ -57,9 +57,9 @@ resource "grafana_rule_group" "aci_golden_signals" {
       summary = "${each.value} error span rate exceeded ${var.error_rate_threshold_reqps} req/s"
     }
     labels = {
-      service = each.value
-      signal  = "errors"
-      team    = "aci"
+      service_name = each.value
+      signal       = "errors"
+      team         = "aci"
     }
     notification_settings {
       contact_point = var.notification_contact_point
