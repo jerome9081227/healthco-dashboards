@@ -95,3 +95,18 @@ variable "oncall_url" {
   default     = "https://oncall-prod-us-central-0.grafana.net/oncall"
 }
 
+##############################################################################
+# SLOs
+##############################################################################
+
+variable "slo_objective" {
+  description = "Target success ratio (0-1) for each service's availability SLO"
+  type        = number
+  default     = 0.995
+}
+
+variable "slo_destination_datasource_uid" {
+  description = "UID of the Prometheus-compatible datasource Grafana SLO writes its generated burn-rate metrics/recording rules to. This is NOT the query source (that's Tempo, per tempo_datasource_uid) -- it's where the SLO's own output metrics land."
+  type        = string
+  default     = "grafanacloud-prom"
+}
