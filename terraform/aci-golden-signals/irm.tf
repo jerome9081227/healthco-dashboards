@@ -8,6 +8,14 @@
 # once members are added to a team, they'll start receiving notifications
 # immediately with no further Terraform changes needed.
 #
+# NOTE: OnCall has its own team concept, synced from core Grafana teams by
+# name -- it is NOT the same ID as grafana_team.<x>.id/team_id/team_uid.
+# `data.grafana_oncall_team` looks up the OnCall-side team by name; its
+# `.id` is what `notify_to_team_members` actually expects. If this was
+# just created in the same apply, OnCall's sync may lag slightly behind
+# Grafana team creation -- re-run apply if this data source can't find it
+# yet.
+#
 # The on-call schedules are created empty (no shifts/rotations) as
 # placeholders. Add real rotations later via grafana_oncall_on_call_shift
 # once you have specific on-call users per service; until then the
@@ -59,14 +67,21 @@ resource "grafana_oncall_escalation" "aci_service_wait" {
   position            = 1
 }
 
+data "grafana_oncall_team" "aci_service" {
+  for_each = toset(var.aci_services)
+  provider = grafana.oncall
+
+  name = grafana_team.aci_service[each.value].name
+}
+
 resource "grafana_oncall_escalation" "aci_service_notify_team" {
   for_each = toset(var.aci_services)
   provider = grafana.oncall
 
-  escalation_chain_id = grafana_oncall_escalation_chain.aci_service[each.value].id
-  type                = "notify_team_members"
-  team_to_notify       = grafana_team.aci_service[each.value].id
-  position             = 2
+  escalation_chain_id     = grafana_oncall_escalation_chain.aci_service[each.value].id
+  type                    = "notify_team_members"
+  notify_to_team_members  = data.grafana_oncall_team.aci_service[each.value].id
+  position                = 2
 }
 
 resource "grafana_oncall_integration" "aci_service" {
