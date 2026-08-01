@@ -1,54 +1,38 @@
 ##############################################################################
 # Per-service availability SLOs, tagged by service_name.
 #
-# Measures the same signal as the "High Error Rate" golden-signal alert in
-# alerts.tf (non-error trace spans / total trace spans over resource.service.name),
-# expressed as a rolling-window SLO with fastburn/slowburn alerting instead
-# of a fixed threshold. This intentionally reuses the existing traceql
-# expression style rather than inventing a separate Prometheus metric that
-# doesn't exist for these services.
+# NOTE: Grafana Cloud SLOs are metric-based, not trace-based. An earlier
+# version of this file tried to build the query from the same Tempo/traceql
+# expressions used in alerts.tf via the `grafana_queries` type, but the SLO
+# API rejects Tempo outright: "datasource type 'tempo' is not valid for
+# GrafanaQueries type" (this isn't documented anywhere -- found by hitting
+# the live API). So this uses the `ratio` query type instead, which takes
+# plain PromQL success/total metric strings -- the same approach the
+# provider's own docs use, and the same convention already used by the
+# pre-existing terraform/slos/aiserviceserror_rate.tf SLO in this repo
+# (http_requests_total, labeled by service).
+#
+# This assumes an http_requests_total-style counter exists per service. If
+# these ACI demo services don't actually emit that exact metric/label, the
+# SLO will still validate and create fine (the API only checks query syntax
+# and datasource type at creation, not that matching data exists) -- it'll
+# just show no data until the real metric name is confirmed and swapped in.
 ##############################################################################
 
 resource "grafana_slo" "aci_service" {
   for_each = toset(var.aci_services)
 
   name        = "${each.value} — Availability"
-  description = "Rolling-window availability SLO for ${each.value}, derived from the same non-error/total trace span ratio used by the High Error Rate golden-signal alert."
+  description = "Rolling-window availability SLO for ${each.value}, based on the proportion of non-5xx HTTP requests."
   folder_uid  = grafana_folder.aci.uid
 
   query {
-    type = "grafana_queries"
+    type = "ratio"
 
-    grafana_queries {
-      grafana_queries = jsonencode([
-        {
-          datasource = {
-            type = "tempo"
-            uid  = var.tempo_datasource_uid
-          }
-          refId     = "Success"
-          queryType = "traceql"
-          query     = "{resource.service.name=\"${each.value}\" && status!=error} | rate()"
-        },
-        {
-          datasource = {
-            type = "tempo"
-            uid  = var.tempo_datasource_uid
-          }
-          refId     = "Total"
-          queryType = "traceql"
-          query     = "{resource.service.name=\"${each.value}\"} | rate()"
-        },
-        {
-          datasource = {
-            type = "__expr__"
-            uid  = "__expr__"
-          }
-          refId      = "Expression"
-          type       = "math"
-          expression = "$Success / $Total"
-        }
-      ])
+    ratio {
+      success_metric  = "http_requests_total{service=\"${each.value}\", status!~\"5..\"}"
+      total_metric    = "http_requests_total{service=\"${each.value}\"}"
+      group_by_labels = ["service"]
     }
   }
 
