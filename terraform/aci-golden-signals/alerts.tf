@@ -179,10 +179,10 @@ resource "grafana_rule_group" "aci_golden_signals" {
       summary = "${each.value} request rate dropped near zero — possible outage"
     }
     labels = {
-      service  = each.value
-      signal   = "traffic"
-      team     = "aci"
-      severity = "critical"
+      service_name = each.value
+      signal       = "traffic"
+      team         = "aci"
+      severity     = "critical"
     }
     notification_settings {
       contact_point = var.notification_contact_point
