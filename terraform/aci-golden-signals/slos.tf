@@ -21,6 +21,17 @@
 # terraform/slos/aiserviceserror_rate.tf convention. This version uses the
 # `ratio` query type (which the SLO API does accept) against a metric
 # confirmed to actually exist on this stack.
+#
+# NOTE (2026-08-02): the `alerting` block (fastburn/slowburn) is
+# deliberately omitted here. The org's alert_rule quota was sitting at
+# 999-1000/1000, and the SLO app provisions its burn-rate recording rules
+# and its fastburn/slowburn alerts as one bundled rule group -- when the
+# quota blocked that group from being created ("alert rule not created:
+# Grafana query error: (HTTP 403 ...): quota has been exceeded"), the SLO
+# showed an Error status AND had no burn-rate data at all, not just missing
+# alerts. Dropping alerting lets the SLO's own rule group (and therefore its
+# data) get created without needing a new alert-rule slot. Re-add the
+# alerting block once the quota is freed up or raised.
 ##############################################################################
 
 resource "grafana_slo" "aci_service" {
@@ -57,30 +68,6 @@ resource "grafana_slo" "aci_service" {
   label {
     key   = "team"
     value = "aci"
-  }
-
-  alerting {
-    fastburn {
-      annotation {
-        key   = "summary"
-        value = "${each.value} SLO fast burn -- error budget depleting rapidly"
-      }
-      label {
-        key   = "severity"
-        value = "critical"
-      }
-    }
-
-    slowburn {
-      annotation {
-        key   = "summary"
-        value = "${each.value} SLO slow burn -- error budget trending down"
-      }
-      label {
-        key   = "severity"
-        value = "warning"
-      }
-    }
   }
 }
 
