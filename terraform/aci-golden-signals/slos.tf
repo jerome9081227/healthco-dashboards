@@ -80,7 +80,78 @@ resource "grafana_slo" "aci_service" {
   }
 }
 
+##############################################################################
+# Standalone SLO for "api-gateway" -- NOTE: this is a distinct service_name
+# from "aci-gateway" (already covered above via var.aci_services). Kept as
+# its own resource rather than folded into the for_each loop since
+# "api-gateway" isn't part of that service list.
+##############################################################################
+
+resource "grafana_slo" "api_gateway" {
+  name        = "api-gateway — Availability"
+  description = "Rolling-window availability SLO for api-gateway, based on the proportion of non-5xx HTTP requests."
+  folder_uid  = grafana_folder.aci.uid
+
+  query {
+    type = "ratio"
+
+    ratio {
+      success_metric  = "http_requests_total{service=\"api-gateway\", status!~\"5..\"}"
+      total_metric    = "http_requests_total{service=\"api-gateway\"}"
+      group_by_labels = ["service"]
+    }
+  }
+
+  objectives {
+    value  = var.slo_objective
+    window = "30d"
+  }
+
+  destination_datasource {
+    uid = var.slo_destination_datasource_uid
+  }
+
+  label {
+    key   = "service_name"
+    value = "api-gateway"
+  }
+
+  label {
+    key   = "team"
+    value = "aci"
+  }
+
+  alerting {
+    fastburn {
+      annotation {
+        key   = "summary"
+        value = "api-gateway SLO fast burn -- error budget depleting rapidly"
+      }
+      label {
+        key   = "severity"
+        value = "critical"
+      }
+    }
+
+    slowburn {
+      annotation {
+        key   = "summary"
+        value = "api-gateway SLO slow burn -- error budget trending down"
+      }
+      label {
+        key   = "severity"
+        value = "warning"
+      }
+    }
+  }
+}
+
 output "aci_service_slos" {
   description = "SLO IDs per ACI service -- open in Grafana Cloud SLO app to view burn-rate dashboards"
   value       = { for k, v in grafana_slo.aci_service : k => v.id }
+}
+
+output "api_gateway_slo_id" {
+  description = "SLO ID for api-gateway -- open in Grafana Cloud SLO app to view burn-rate dashboard"
+  value       = grafana_slo.api_gateway.id
 }
