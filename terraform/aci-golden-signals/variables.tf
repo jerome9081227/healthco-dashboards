@@ -50,3 +50,63 @@ variable "notification_contact_point" {
   type        = string
   default     = "grafana-default-email"
 }
+
+##############################################################################
+# Synthetic Monitoring
+##############################################################################
+
+variable "sm_url" {
+  description = "Synthetic Monitoring API URL (from SM plugin Config tab)"
+  type        = string
+  default     = "https://synthetic-monitoring-api.grafana.net"
+}
+
+variable "sm_access_token" {
+  description = "Synthetic Monitoring access token (from SM plugin Config tab)"
+  type        = string
+  sensitive   = true
+}
+
+variable "sm_probes" {
+  description = "Public probe IDs/locations to run the aci-storefront check from"
+  type        = list(string)
+  default     = ["London", "New York"]
+}
+
+# Only aci-storefront is reachable via a public hostname. The other 6 services
+# resolve to *.internal.*.azurecontainerapps.io hostnames that public SM
+# probes cannot reach -- they need a private probe deployed inside that
+# VNet before a check can be added for them. See synthetics.tf for details.
+variable "aci_public_targets" {
+  description = "Public HTTPS target URL per ACI service that has a publicly reachable hostname"
+  type        = map(string)
+  default = {
+    "aci-storefront" = "https://aci-storefront.salmondesert-baa25d35.eastus.azurecontainerapps.io/"
+  }
+}
+
+##############################################################################
+# Grafana IRM / OnCall
+##############################################################################
+
+variable "oncall_url" {
+  description = "Grafana OnCall API URL for this stack"
+  type        = string
+  default     = "https://oncall-prod-us-central-0.grafana.net/oncall"
+}
+
+##############################################################################
+# SLOs
+##############################################################################
+
+variable "slo_objective" {
+  description = "Target success ratio (0-1) for each service's availability SLO"
+  type        = number
+  default     = 0.995
+}
+
+variable "slo_destination_datasource_uid" {
+  description = "UID of the Prometheus-compatible datasource Grafana SLO writes its generated burn-rate metrics/recording rules to. This is NOT the query source (that's Tempo, per tempo_datasource_uid) -- it's where the SLO's own output metrics land."
+  type        = string
+  default     = "grafanacloud-prom"
+}
