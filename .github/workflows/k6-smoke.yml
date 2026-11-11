@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # TODO: replace with your actual service startup
+      # TOO: replace with your actual service startup
       - name: Start mock service
         run: |
           python3 -m http.server 6789 &
